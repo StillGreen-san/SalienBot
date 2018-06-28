@@ -14,20 +14,23 @@ namespace SalienBot
     {
         public int time_on_planet;
         public Planet active_planet;
-        public int score;
-        public int next_level_score;
+        public int exp;
+        public int next_level_exp;
         public int level;
     }
 
     class Zone
     {
-        public int difficulty;
-        public int planet_priority;
-
         public int planet_id;
-        public int zone_position;
 
+        public int zone_position;
+        public int zone_id;
+        public int zone_offset;
+        public int difficulty;
         public double capture_progress;
+
+        public List<Clan> clans;
+        public int clan_lead;
     }
 
     class Planet
@@ -38,71 +41,46 @@ namespace SalienBot
         public double capture_progress;
         public int total_joins;
         public int current_players;
-        public int planet_priority;
 
         public List<Zone> availableZones;
     }
 
+    class Clan
+    {
+        public int id;
+        public string name;
+    }
+
+    class Priority
+    {
+        public string order;
+        public char check_type;
+        public char check_comp;
+        public int check_val;
+
+        public Priority(string Order, char Check_Type, char Check_Comp, int Check_Val)
+        {
+            this.order = Order;
+            this.check_type = Check_Type;
+            this.check_comp = Check_Comp;
+            this.check_val = Check_Val;
+        }
+    }
+
     class Program
     {
-        static int SLEEP_TIME = 110;
+        static int ROUND_TIME = 120;
+        static int WAIT_TIME = 5;
+        static int RE_TRIES = 3;
         static string ACCESS_TOKEN;
-
-        public static List<int> Priorities = new List<int>() {
-            2,   //Assasins Creed
-            531, // Bioshock, Soma, Subnautica
-            526, // Doom, Master of Orion, Prey
-            1,   // 60 seconds and Lisa
-            25,  // Stardew Valley
-            20,  // Tomb Raider
-            21,  // Slime Rancher
-            36,  // Prince of Persia, SuperHot
-            18,  // DBF Z, Mortal Kombat
-            22,  // Megaman
-            24,  // Super Meat Boy
-            26,  // The Witcher and Amnesia
-            35,  // Rocket League
-            40,  // Goat Simulator
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12,
-            13,
-            14,
-            15,
-            16,
-            17,
-            19,
-            27,
-            28,
-            29,
-            30,
-            31,
-            32,
-            33,
-            34,
-            38,
-            39,
-            41,
-            42,
-            508,
-            520,
-            524,
-            525,
-            527,
-            528,
-            529,
-            530,
-            532,
-            533,
-            534
+        public static int REP_CLAN = 148845;
+        public static int START_ZONE = 45;
+        public static List<Priority> PRIORITIES = new List<Priority>()
+        {
+            new Priority ("ODpL", 'L', '=', 0),
+            new Priority ("ODPL", ' ', ' ', 0)
         };
+        public static List<Zone> DEADLOCKS = new List<Zone>();
 
         static List<Planet> ActivePlanets = new List<Planet>();
 
@@ -120,26 +98,22 @@ namespace SalienBot
                 return;
             }
             Console.WriteLine("Using Token: " + ACCESS_TOKEN);
-
+            /* need implementing
             try
             {
                 string[] lines = File.ReadAllLines("priorities.txt");
                 if (lines.Length > 0)
                 {
-                    Priorities.Clear();
-                    foreach (string l in lines)
-                    {
-                        Priorities.Add(int.Parse(l.Split('#')[0]));
-                    }
+                    PRIORITIES = lines[0];
                 }
             }
             catch (Exception e) { }
-
+            */
             while (true)
             {
                 try
                 {
-                  Iteration();
+                    Iteration();
                 }
                 catch (Exception e)
                 {
@@ -158,10 +132,10 @@ namespace SalienBot
 
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("------------------------------");
-            if(playerInfo.active_planet != null)
+            if (playerInfo.active_planet != null)
                 Console.WriteLine("Time on planet '" + playerInfo.active_planet.name + "': " + playerInfo.time_on_planet + "s");
             Console.WriteLine("Level: " + playerInfo.level);
-            Console.WriteLine("XP: " + playerInfo.score + "/" + playerInfo.next_level_score + "  (" + (((double)playerInfo.score / (double)playerInfo.next_level_score)*100).ToString("#.##") + "%)");
+            Console.WriteLine("XP: " + playerInfo.exp + "/" + playerInfo.next_level_exp + "  (" + (((double)playerInfo.exp / (double)playerInfo.next_level_exp) * 100).ToString("#.##") + "%)");
             Console.WriteLine("------------------------------");
             Console.ResetColor();
 
@@ -173,19 +147,43 @@ namespace SalienBot
                 playerInfo.active_planet = null;
             }
             // Join planet if necessary
-            if(playerInfo.active_planet == null || playerInfo.active_planet.id != bestZone.planet_id)
+            if (playerInfo.active_planet == null || playerInfo.active_planet.id != bestZone.planet_id)
             {
                 playerInfo.active_planet = ActivePlanets.Find(x => x.id == bestZone.planet_id);
                 Console.WriteLine("Joining planet " + playerInfo.active_planet.name + "...");
                 DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/JoinPlanet"), "id=" + bestZone.planet_id);
             }
 
-            JToken zone_join_resp = DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/JoinZone"), "zone_position=" + bestZone.zone_position);
+            /*JToken zone_join_resp = DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/JoinZone"), "zone_position=" + bestZone.zone_position);
             if (!zone_join_resp.HasValues)
             {
                 Console.WriteLine("Couldn't join zone " + bestZone.zone_position + "!");
                 return;
+            }*/
+
+            int i = 0;
+            while (true)
+            {
+                JToken zone_join_resp = DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/JoinZone"), "zone_position=" + bestZone.zone_position);
+                if (zone_join_resp.HasValues)
+                {
+                    break;
+                }
+
+                Console.WriteLine("Couldn't join zone " + bestZone.zone_position + "!");
+                Console.WriteLine("Trying again in " + WAIT_TIME + " seconds.");
+
+                Thread.Sleep(1000 * WAIT_TIME);
+
+                if (i >= RE_TRIES)
+                {
+                    DEADLOCKS.Add(bestZone);
+                    return;
+                }
+
+                i++;
             }
+
             Console.WriteLine("Joined zone " + bestZone.zone_position + " in planet " + playerInfo.active_planet.name);
 
             Console.ForegroundColor = ConsoleColor.Yellow;
@@ -195,8 +193,8 @@ namespace SalienBot
             Console.WriteLine("Current planet players: " + playerInfo.active_planet.current_players);
             Console.ResetColor();
 
-            Console.WriteLine("Sleeping for " + SLEEP_TIME + " seconds...");
-            Thread.Sleep(1000 * SLEEP_TIME);
+            Console.WriteLine("Sleeping for " + ROUND_TIME + " seconds...");
+            Thread.Sleep(1000 * ROUND_TIME);
 
             ReportScore(GetScoreFromDifficulty(bestZone.difficulty));
         }
@@ -238,8 +236,6 @@ namespace SalienBot
             JToken response = DoGet(BuildUrl("ITerritoryControlMinigameService/GetPlanets") + "/?active_only=1&language=english");
             var planets = response.SelectToken("planets");
 
-            string s = planets.ToString();
-
             foreach (JToken planet in planets)
             {
                 Planet p = new Planet
@@ -250,7 +246,6 @@ namespace SalienBot
                     capture_progress = (double)planet["state"]["capture_progress"],
                     total_joins = (int)planet["state"]["total_joins"],
                     current_players = (int)planet["state"]["current_players"],
-                    planet_priority = 100000 - Priorities.IndexOf((int)planet["id"]),
                     availableZones = new List<Zone>()
                 };
 
@@ -259,18 +254,43 @@ namespace SalienBot
 
                 foreach (JToken zone in zones)
                 {
-                    if (!(bool)zone["captured"])
+                    if (!(bool)zone["captured"] && !ContainsDeadlock((int)zone["gameid"]))
                     {
                         Zone z = new Zone
                         {
-                            difficulty = (int)zone["difficulty"],
-                            planet_priority = p.planet_priority,
-
                             planet_id = p.id,
-                            zone_position = (int)zone["zone_position"],
 
+                            zone_position = (int)zone["zone_position"],
+                            zone_id = (int)zone["gameid"],
+                            difficulty = (int)zone["difficulty"],
                             capture_progress = (double)zone["capture_progress"],
+                            clans = new List<Clan>(),
+                            clan_lead = 5
                         };
+
+                        if (z.zone_position < START_ZONE)
+                            z.zone_offset = START_ZONE - z.zone_position;
+                        else
+                            z.zone_offset = z.zone_position - START_ZONE;
+
+                        var clans = zone["top_clans"];
+                        var i = 0;
+
+                        foreach (JToken ct in clans)
+                        {
+                            Clan c = new Clan
+                            {
+                                id = (int)ct["accountid"],
+                                name = (string)ct["name"]
+                            };
+
+                            if (c.id == REP_CLAN) z.clan_lead = i;
+
+                            z.clans.Add(c);
+
+                            i++;
+                        }
+
                         p.availableZones.Add(z);
                     }
                 }
@@ -284,11 +304,106 @@ namespace SalienBot
             List<Zone> allZones = new List<Zone>();
 
             foreach (Planet p in ActivePlanets)
+            {
                 allZones.AddRange(p.availableZones);
+            }
 
-            var result = allZones.OrderBy(c => c.difficulty).ThenBy(c => c.planet_priority);
+            //var result = allZones.OrderBy(c => c.difficulty).ThenBy(c => c.planet_priority);
+            allZones = allZones.OrderBy(l => l.planet_id).ToList();
 
-            return result.Last();
+            foreach (Priority p in PRIORITIES)
+            {
+                foreach (Char c in p.order)
+                {
+                    switch (c)
+                    {
+                        case 'P':
+                            allZones = allZones.OrderBy(l => l.capture_progress).ToList();
+                            break;
+                        case 'p':
+                            allZones = allZones.OrderByDescending(l => l.capture_progress).ToList();
+                            break;
+                        case 'L':
+                            allZones = allZones.OrderBy(l => l.clan_lead).ToList();
+                            break;
+                        case 'l':
+                            allZones = allZones.OrderByDescending(l => l.clan_lead).ToList();
+                            break;
+                        case 'D':
+                            allZones = allZones.OrderBy(l => l.difficulty).ToList();
+                            break;
+                        case 'd':
+                            allZones = allZones.OrderByDescending(l => l.difficulty).ToList();
+                            break;
+                        case 'O':
+                            allZones = allZones.OrderBy(l => l.zone_offset).ToList();
+                            break;
+                        case 'o':
+                            allZones = allZones.OrderByDescending(l => l.zone_offset).ToList();
+                            break;
+                    }
+                }
+
+                switch (p.check_type)
+                {
+                    case 'P':
+                        if (BestZoneCheck((int)allZones.First().capture_progress * 100, p.check_comp, p.check_val)) return allZones.First();
+                        break;
+                    case 'L':
+                        if (BestZoneCheck(allZones.First().clan_lead, p.check_comp, p.check_val)) return allZones.First();
+                        break;
+                    case 'D':
+                        if (BestZoneCheck(allZones.First().difficulty, p.check_comp, p.check_val)) return allZones.First();
+                        break;
+                    case 'O':
+                        if (BestZoneCheck(allZones.First().zone_offset, p.check_comp, p.check_val)) return allZones.First();
+                        break;
+                    default:
+                        break;
+                }
+
+            }
+
+            return allZones.First();
+        }
+
+        public static bool BestZoneCheck(int ZoneValue, char CompType, int CompValue)
+        {
+            bool check = false;
+
+            switch (CompType)
+            {
+                case '<':
+                    if (ZoneValue <= CompValue) check = true;
+                    break;
+                case '>':
+                    if (ZoneValue >= CompValue) check = true;
+                    break;
+                case '=':
+                    if (ZoneValue == CompValue) check = true;
+                    break;
+                case '!':
+                    if (ZoneValue != CompValue) check = true;
+                    break;
+            }
+
+            return check;
+        }
+
+        public static bool ContainsDeadlock(int gameid)
+        {
+            bool contains = false;
+
+            foreach (Zone z in DEADLOCKS)
+            {
+                if (z.zone_id == gameid)
+                {
+                    contains = true;
+                    break;
+                }
+            }
+
+            return contains;
         }
 
         public static PlayerInfo GetPlayerInfo()
@@ -297,8 +412,8 @@ namespace SalienBot
 
             PlayerInfo pi = new PlayerInfo
             {
-                score = (int)response["score"],
-                next_level_score = (int)response["next_level_score"],
+                exp = (int)response["score"],
+                next_level_exp = (int)response["next_level_score"],
                 level = (int)response["level"],
                 time_on_planet = 0,
                 active_planet = null
