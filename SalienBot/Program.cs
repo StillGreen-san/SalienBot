@@ -91,24 +91,71 @@ namespace SalienBot
 
         static void Main(string[] args)
         {
-            ACCESS_TOKEN = File.ReadAllText("token.txt");
-            if (ACCESS_TOKEN.Length == 0)
+            #region get access token
+            try
             {
-                Console.WriteLine("Token is empty!");
-                return;
+                string line = File.ReadAllLines("access_token.txt")[0];
+                ACCESS_TOKEN = line;
+            }
+            catch (Exception e) { }
+            if (ACCESS_TOKEN == null || ACCESS_TOKEN == "")
+            {
+                Console.WriteLine("access_token file empty?");
+                Console.WriteLine("Please get a token from here: https://steamcommunity.com/saliengame/gettoken");
+                Console.WriteLine("Past token here:");
+                ACCESS_TOKEN = Console.ReadLine();
+            }
+            ACCESS_TOKEN.Trim('"', ' ', ',');
+            if (ACCESS_TOKEN.Length != 32)
+            {
+                Console.WriteLine("Token seems wrong!");
+                Console.WriteLine("Press Key to continue or close window.");
             }
             Console.WriteLine("Using Token: " + ACCESS_TOKEN);
-            /* need implementing
+            #endregion
+
+            #region read priorities
             try
             {
                 string[] lines = File.ReadAllLines("priorities.txt");
+
                 if (lines.Length > 0)
                 {
-                    PRIORITIES = lines[0];
+                    List<Priority> prios = new List<Priority>();
+
+                    for (int i = 0; i < lines.Length; i++)
+                    {
+                        if (lines[i].Length >= 7)
+                        {
+                            string[] split = lines[i].Split(',');
+                            if (split.Length == 4)
+                            {
+                                prios.Add(new Priority(split[0].Trim(), Convert.ToChar(split[1]), Convert.ToChar(split[2]), Convert.ToInt32(split[3])));
+                            }
+                            else
+                            {
+                                Console.WriteLine("wrong format, check line " + i + " in priorities file, skipping.");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("wrong format, check line " + i + " in priorities file, skipping.");
+                        }
+
+                    }
+
+                    if (prios.Count > 0)
+                    {
+                        PRIORITIES.Clear();
+                        PRIORITIES.AddRange(prios);
+                    }
+
                 }
+
             }
             catch (Exception e) { }
-            */
+            #endregion
+
             while (true)
             {
                 try
@@ -191,6 +238,7 @@ namespace SalienBot
             Console.WriteLine("Current zone captured: " + (bestZone.capture_progress * 100).ToString("#.##") + "%");
             Console.WriteLine("Current planet captured: " + (playerInfo.active_planet.capture_progress * 100).ToString("#.##") + "%");
             Console.WriteLine("Current planet players: " + playerInfo.active_planet.current_players);
+            Console.WriteLine("------------------------------");
             Console.ResetColor();
 
             Console.WriteLine("Sleeping for " + ROUND_TIME + " seconds...");
