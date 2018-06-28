@@ -17,11 +17,13 @@ namespace SalienBot
         public int exp;
         public int next_level_exp;
         public int level;
+        public int clanid;
     }
 
     class Zone
     {
         public int planet_id;
+        public int planet_clan_captured;
 
         public int zone_position;
         public int zone_id;
@@ -39,6 +41,7 @@ namespace SalienBot
         public string name;
         public int difficulty;
         public double capture_progress;
+        public int clan_captured;
         public int total_joins;
         public int current_players;
 
