@@ -222,14 +222,16 @@ namespace SalienBot
                 }
 
                 Console.WriteLine("Couldn't join zone " + bestZone.zone_position + "!");
-                Console.WriteLine("Trying again in " + WAIT_TIME + " seconds.");
-
-                Thread.Sleep(1000 * WAIT_TIME);
-
+                
                 if (i >= RE_TRIES)
                 {
                     DEADLOCKS.Add(bestZone);
                     return;
+                }
+                else
+                {
+                    Console.WriteLine("Trying again in " + WAIT_TIME + " seconds.");
+                    Thread.Sleep(1000 * WAIT_TIME);
                 }
 
                 i++;
@@ -308,7 +310,7 @@ namespace SalienBot
 
                 foreach (JToken zone in zones)
                 {
-                    if (!(bool)zone["captured"])
+                    if ((bool)zone["captured"])
                     {
                         if ((int)zone["leader"]["accountid"] == REP_CLAN) p.clan_captured += 1;
                     }
