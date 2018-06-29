@@ -238,8 +238,7 @@ namespace SalienBot
                 }
                 else
                 {
-                    Console.WriteLine("Trying again in " + (WAIT_TIME * (i+1)) + " seconds.");
-                    Thread.Sleep(1000 * WAIT_TIME * (i+1));
+                    SleepCountdown(1000 * WAIT_TIME * (i + 1), "Trying again in:");
                 }
 
                 i++;
@@ -255,9 +254,7 @@ namespace SalienBot
             Console.WriteLine("Current planet players: " + playerInfo.active_planet.current_players);
             Console.WriteLine("------------------------------");
             Console.ResetColor();
-
-            Console.WriteLine("Sleeping for " + ROUND_TIME + " seconds...");
-            Thread.Sleep(1000 * ROUND_TIME);
+            SleepCountdown(1000 * ROUND_TIME, "Waiting for round to end:");
 
             ReportScore(GetScoreFromDifficulty(bestZone.difficulty));
         }
@@ -573,13 +570,11 @@ namespace SalienBot
             //wait and return
             if (RE_TRIES2_COUNT > RE_TRIES)
             {
-                Console.WriteLine("Wait for " + (WAIT_TIME2 * Math.Min(RE_TRIES2_COUNT, 3)) + " seconds and retry.");
-                Thread.Sleep(1000 * WAIT_TIME2 * (RE_TRIES2_COUNT-RE_TRIES));
+                SleepCountdown(1000 * WAIT_TIME2 * Math.Min(RE_TRIES2_COUNT - RE_TRIES, 3), "Trying again in:");
             }
             else
             {
-                Console.WriteLine("Wait for " + (WAIT_TIME * RE_TRIES) + " seconds and retry.");
-                Thread.Sleep(1000 * WAIT_TIME * RE_TRIES2_COUNT);
+                SleepCountdown(1000 * WAIT_TIME * RE_TRIES2_COUNT, "Trying again in:");
             }
 
             Console.ResetColor();
@@ -622,6 +617,25 @@ namespace SalienBot
 
             return "err";
             //return Convert.ToChar(((ZoneID+1) % 12) + 64) + Convert.ToString(((ZoneID + 1) % 12));
+        }
+
+        public static void SleepCountdown(int Time, string Message)
+        {
+            int time_left = Time;
+            string message_time;
+
+            while (time_left > 0)
+            {
+                message_time = Message + " " +  (time_left / 1000) + " seconds...";
+
+                Console.Write("\r{0}", message_time);
+
+                time_left = time_left - Math.Min(1000, Time);
+
+                Thread.Sleep(Math.Min(1000, time_left));
+            }
+
+            Console.WriteLine(Message + " " +  (Time / 1000) + " seconds... Done.");
         }
 
         public static JToken ParseResponse(string response)
