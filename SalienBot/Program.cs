@@ -240,6 +240,7 @@ namespace SalienBot
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("------------------------------");
             Console.WriteLine("Current zone captured: " + (bestZone.capture_progress * 100).ToString("#.##") + "%");
+            Console.WriteLine("Current zone leader: " + bestZone.clans[0].name);
             Console.WriteLine("Current planet captured: " + (playerInfo.active_planet.capture_progress * 100).ToString("#.##") + "%");
             Console.WriteLine("Current planet players: " + playerInfo.active_planet.current_players);
             Console.WriteLine("------------------------------");
@@ -296,6 +297,7 @@ namespace SalienBot
                     name = (string)planet["state"]["name"],
                     difficulty = (int)planet["state"]["difficulty"],
                     capture_progress = (double)planet["state"]["capture_progress"],
+                    clan_captured = 0,
                     total_joins = (int)planet["state"]["total_joins"],
                     current_players = (int)planet["state"]["current_players"],
                     availableZones = new List<Zone>()
@@ -306,7 +308,11 @@ namespace SalienBot
 
                 foreach (JToken zone in zones)
                 {
-                    if (!(bool)zone["captured"] && !ContainsDeadlock((int)zone["gameid"]))
+                    if (!(bool)zone["captured"])
+                    {
+                        if ((int)zone["leader"]["accountid"] == REP_CLAN) p.clan_captured += 1;
+                    }
+                    else if (!ContainsDeadlock((int)zone["gameid"]))
                     {
                         Zone z = new Zone
                         {
@@ -347,6 +353,10 @@ namespace SalienBot
                     }
                 }
 
+                foreach (Zone z in p.availableZones)
+                {
+                    z.planet_clan_captured = p.clan_captured;
+                }
                 ActivePlanets.Add(p);
             }
         }
@@ -393,6 +403,12 @@ namespace SalienBot
                         case 'o':
                             allZones = allZones.OrderByDescending(l => l.zone_offset).ToList();
                             break;
+                        case 'C':
+                            allZones = allZones.OrderBy(l => l.planet_clan_captured).ToList();
+                            break;
+                        case 'c':
+                            allZones = allZones.OrderByDescending(l => l.planet_clan_captured).ToList();
+                            break;
                     }
                 }
 
@@ -410,7 +426,8 @@ namespace SalienBot
                     case 'O':
                         if (BestZoneCheck(allZones.First().zone_offset, p.check_comp, p.check_val)) return allZones.First();
                         break;
-                    default:
+                    case 'C':
+                        if (BestZoneCheck(allZones.First().planet_clan_captured, p.check_comp, p.check_val)) return allZones.First();
                         break;
                 }
 
@@ -468,13 +485,20 @@ namespace SalienBot
                 next_level_exp = (int)response["next_level_score"],
                 level = (int)response["level"],
                 time_on_planet = 0,
-                active_planet = null
+                active_planet = null,
+                clanid = 0
             };
 
             try
             {
                 pi.time_on_planet = (int)response["time_on_planet"];
                 pi.active_planet = ActivePlanets.Find(x => x.id == (int)response["active_planet"]);
+            }
+            catch (Exception e) { }
+
+            try
+            {
+                pi.clanid = (int)response["clan_info"]["accountid"];
             }
             catch (Exception e) { }
 
