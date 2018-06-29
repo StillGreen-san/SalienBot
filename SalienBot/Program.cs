@@ -238,8 +238,8 @@ namespace SalienBot
                 }
                 else
                 {
-                    Console.WriteLine("Trying again in " + (WAIT_TIME * i+1) + " seconds.");
-                    Thread.Sleep(1000 * WAIT_TIME * i+1);
+                    Console.WriteLine("Trying again in " + (WAIT_TIME * (i+1)) + " seconds.");
+                    Thread.Sleep(1000 * WAIT_TIME * (i+1));
                 }
 
                 i++;
@@ -250,7 +250,7 @@ namespace SalienBot
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("------------------------------");
             Console.WriteLine("Current zone captured: " + (bestZone.capture_progress * 100).ToString("#.##") + "%");
-            Console.WriteLine("Current zone leader: " + bestZone.clans[0].name);
+            Console.WriteLine("Current zone leaders: " + ClansToString(bestZone.clans, 3));
             Console.WriteLine("Current planet captured: " + (playerInfo.active_planet.capture_progress * 100).ToString("#.##") + "%");
             Console.WriteLine("Current planet players: " + playerInfo.active_planet.current_players);
             Console.WriteLine("------------------------------");
@@ -521,6 +521,22 @@ namespace SalienBot
         public static void RepresentClan()
         {
             DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/RepresentClan"), "clanid=" + REP_CLAN);
+        }
+
+        public static string ClansToString(List<Clan> Clans, int Count)
+        {
+            string clanstring = "";
+            int counter = 1;
+
+            foreach (Clan c in Clans)
+            {
+                clanstring += c.name + "; ";
+
+                if (counter >= Count) { break; }
+                counter++;
+            }
+
+            return clanstring;
         }
 
         public static void ExceptionHandling(Exception exception)
