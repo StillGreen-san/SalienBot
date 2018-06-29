@@ -33,6 +33,8 @@ namespace SalienBot
 
         public List<Clan> clans;
         public int rep_clan_lead;
+
+        public DateTime deadlock_time;
     }
 
     class Planet
@@ -179,6 +181,8 @@ namespace SalienBot
         public static void Iteration()
         {
             RefreshData();
+            //removes zone older than 10 min from DEADLOCK list
+            DEADLOCKS.RemoveAll(z => z.deadlock_time <= DateTime.Now.Subtract(TimeSpan.FromMinutes(10)));
 
             Zone bestZone = DeterminateBestZoneAndPlanet();
             PlayerInfo playerInfo = GetPlayerInfo();
@@ -228,13 +232,14 @@ namespace SalienBot
                 
                 if (i >= RE_TRIES)
                 {
+                    bestZone.deadlock_time = DateTime.Now;
                     DEADLOCKS.Add(bestZone);
                     return;
                 }
                 else
                 {
-                    Console.WriteLine("Trying again in " + WAIT_TIME + " seconds.");
-                    Thread.Sleep(1000 * WAIT_TIME);
+                    Console.WriteLine("Trying again in " + (WAIT_TIME * i+1) + " seconds.");
+                    Thread.Sleep(1000 * WAIT_TIME * i+1);
                 }
 
                 i++;
@@ -470,7 +475,7 @@ namespace SalienBot
         public static bool ContainsDeadlock(int gameid)
         {
             bool contains = false;
-
+            
             foreach (Zone z in DEADLOCKS)
             {
                 if (z.zone_id == gameid)
@@ -482,7 +487,7 @@ namespace SalienBot
 
             return contains;
         }
-
+        
         public static PlayerInfo GetPlayerInfo()
         {
             JToken response = DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/GetPlayerInfo"));
@@ -550,12 +555,12 @@ namespace SalienBot
             //wait and return
             if (RE_TRIES2_COUNT > RE_TRIES)
             {
-                Console.WriteLine("Wait for " + WAIT_TIME2 * Math.Min(RE_TRIES2_COUNT, 3) + " seconds and retry.");
+                Console.WriteLine("Wait for " + (WAIT_TIME2 * Math.Min(RE_TRIES2_COUNT, 3)) + " seconds and retry.");
                 Thread.Sleep(1000 * WAIT_TIME2 * RE_TRIES2_COUNT);
             }
             else
             {
-                Console.WriteLine("Wait for " + WAIT_TIME * RE_TRIES + " seconds and retry.");
+                Console.WriteLine("Wait for " + (WAIT_TIME * RE_TRIES) + " seconds and retry.");
                 Thread.Sleep(1000 * WAIT_TIME * RE_TRIES2_COUNT);
             }
 
