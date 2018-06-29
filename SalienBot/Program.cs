@@ -102,7 +102,7 @@ namespace SalienBot
             {
                 Console.WriteLine("access_token file empty?");
                 Console.WriteLine("Please get a token from here: https://steamcommunity.com/saliengame/gettoken");
-                Console.WriteLine("Past token here:");
+                Console.WriteLine("Paste token down here:");
                 ACCESS_TOKEN = Console.ReadLine();
             }
             ACCESS_TOKEN.Trim('"', ' ', ',');
