@@ -75,6 +75,10 @@ namespace SalienBot
         static int ROUND_TIME = 120;
         static int WAIT_TIME = 5;
         static int RE_TRIES = 3;
+        static Exception LAST_EXCEPTION = new Exception("NO EXCEPTION OCCURRED YET");
+        static int WAIT_TIME2 = 300;
+        static int RE_TRIES2 = 2;
+        static int RE_TRIES2_COUNT = 0;
         static string ACCESS_TOKEN;
         public static int REP_CLAN = 148845;
         public static int START_ZONE = 45;
@@ -167,8 +171,7 @@ namespace SalienBot
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Exception: " + e.Message);
-                    Console.WriteLine("Starting again...");
+                    ExceptionHandling(e);
                 }
             }
         }
@@ -517,14 +520,62 @@ namespace SalienBot
 
         public static void ExceptionHandling(Exception exception)
         {
-            //compare to last exceptio
+            //compare to last exception
+            if (exception.Message == LAST_EXCEPTION.Message) { RE_TRIES2_COUNT++; }
+            else { RE_TRIES2_COUNT = 1; }
 
-            //write lo
+            Console.WriteLine("Exception encountered, check log for details.");
+
+            //write log
+            try
+            {
+                //var file = File.OpenWrite("log.txt");
+                var file = new FileStream("log.txt", FileMode.Append);
+                StreamWriteLine("#-----------------------------", file);
+                StreamWriteLine("Time: " + DateTime.Now.ToString(), file);
+                StreamWriteLine("Exception count: " + RE_TRIES2_COUNT, file);
+                StreamWriteLine(exception.ToString(), file);
+                StreamWriteLine("#-----------------------------", file);
+                file.Close();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Exception while writing log file:");
+                Console.WriteLine(exception.Message);
+            }
 
             //set last exception
+            LAST_EXCEPTION = exception;
 
             //wait and return
+            if (RE_TRIES2_COUNT > RE_TRIES)
+            {
+                Console.WriteLine("Wait for " + WAIT_TIME2 * Math.Min(RE_TRIES2_COUNT, 3) + " seconds and retry.");
+                Thread.Sleep(1000 * WAIT_TIME2 * RE_TRIES2_COUNT);
+            }
+            else
+            {
+                Console.WriteLine("Wait for " + WAIT_TIME * RE_TRIES + " seconds and retry.");
+                Thread.Sleep(1000 * WAIT_TIME * RE_TRIES2_COUNT);
+            }
 
+        }
+
+        public static void StreamWriteLine(string data, FileStream stream, int start = 0, int end = -1)
+        {
+            if (end > data.Length || end == -1)
+            {
+                end = data.Length;
+            }
+            if (start > data.Length-1 || start == end)
+            {
+                start = end - 1;
+            }
+            
+            stream.Write(Encoding.ASCII.GetBytes(data), start, end);
+
+            byte[] newline = Encoding.ASCII.GetBytes(Environment.NewLine);
+            stream.Write(newline, 0, newline.Length);
         }
 
         public static JToken ParseResponse(string response)
