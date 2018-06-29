@@ -17,11 +17,13 @@ namespace SalienBot
         public int exp;
         public int next_level_exp;
         public int level;
+        public int clanid;
     }
 
     class Zone
     {
         public int planet_id;
+        public int planet_clan_captured;
 
         public int zone_position;
         public int zone_id;
@@ -30,7 +32,9 @@ namespace SalienBot
         public double capture_progress;
 
         public List<Clan> clans;
-        public int clan_lead;
+        public int rep_clan_lead;
+
+        public DateTime deadlock_time;
     }
 
     class Planet
@@ -39,6 +43,7 @@ namespace SalienBot
         public string name;
         public int difficulty;
         public double capture_progress;
+        public int clan_captured;
         public int total_joins;
         public int current_players;
 
@@ -72,13 +77,17 @@ namespace SalienBot
         static int ROUND_TIME = 120;
         static int WAIT_TIME = 5;
         static int RE_TRIES = 3;
+        static Exception LAST_EXCEPTION = new Exception("NO EXCEPTION OCCURRED YET");
+        static int WAIT_TIME2 = 300;
+        static int RE_TRIES2 = 2;
+        static int RE_TRIES2_COUNT = 0;
         static string ACCESS_TOKEN;
         public static int REP_CLAN = 148845;
         public static int START_ZONE = 45;
         public static List<Priority> PRIORITIES = new List<Priority>()
         {
-            new Priority ("ODpL", 'L', '=', 0),
-            new Priority ("ODPL", ' ', ' ', 0)
+            new Priority ("CODpL", 'L', '=', 0),
+            new Priority ("CODPL", ' ', ' ', 0)
         };
         public static List<Zone> DEADLOCKS = new List<Zone>();
 
@@ -164,8 +173,7 @@ namespace SalienBot
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Exception: " + e.Message);
-                    Console.WriteLine("Starting again...");
+                    ExceptionHandling(e);
                 }
             }
         }
@@ -173,9 +181,12 @@ namespace SalienBot
         public static void Iteration()
         {
             RefreshData();
+            //removes zone older than 10 min from DEADLOCK list
+            DEADLOCKS.RemoveAll(z => z.deadlock_time <= DateTime.Now.Subtract(TimeSpan.FromMinutes(10)));
 
             Zone bestZone = DeterminateBestZoneAndPlanet();
             PlayerInfo playerInfo = GetPlayerInfo();
+            if (playerInfo.clanid != REP_CLAN) RepresentClan();
 
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("------------------------------");
@@ -218,31 +229,32 @@ namespace SalienBot
                 }
 
                 Console.WriteLine("Couldn't join zone " + bestZone.zone_position + "!");
-                Console.WriteLine("Trying again in " + WAIT_TIME + " seconds.");
-
-                Thread.Sleep(1000 * WAIT_TIME);
-
+                
                 if (i >= RE_TRIES)
                 {
+                    bestZone.deadlock_time = DateTime.Now;
                     DEADLOCKS.Add(bestZone);
                     return;
+                }
+                else
+                {
+                    SleepCountdown(1000 * WAIT_TIME * (i + 1), "Trying again in:");
                 }
 
                 i++;
             }
 
-            Console.WriteLine("Joined zone " + bestZone.zone_position + " in planet " + playerInfo.active_planet.name);
+            Console.WriteLine("Joined zone " + bestZone.zone_position + "/" + ZoneIDToCoord(bestZone.zone_position) + " in planet " + playerInfo.active_planet.name);
 
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("------------------------------");
             Console.WriteLine("Current zone captured: " + (bestZone.capture_progress * 100).ToString("#.##") + "%");
+            Console.WriteLine("Current zone leaders: " + ClansToString(bestZone.clans, 3));
             Console.WriteLine("Current planet captured: " + (playerInfo.active_planet.capture_progress * 100).ToString("#.##") + "%");
             Console.WriteLine("Current planet players: " + playerInfo.active_planet.current_players);
             Console.WriteLine("------------------------------");
             Console.ResetColor();
-
-            Console.WriteLine("Sleeping for " + ROUND_TIME + " seconds...");
-            Thread.Sleep(1000 * ROUND_TIME);
+            SleepCountdown(1000 * ROUND_TIME, "Waiting for round to end:");
 
             ReportScore(GetScoreFromDifficulty(bestZone.difficulty));
         }
@@ -292,6 +304,7 @@ namespace SalienBot
                     name = (string)planet["state"]["name"],
                     difficulty = (int)planet["state"]["difficulty"],
                     capture_progress = (double)planet["state"]["capture_progress"],
+                    clan_captured = 0,
                     total_joins = (int)planet["state"]["total_joins"],
                     current_players = (int)planet["state"]["current_players"],
                     availableZones = new List<Zone>()
@@ -302,7 +315,11 @@ namespace SalienBot
 
                 foreach (JToken zone in zones)
                 {
-                    if (!(bool)zone["captured"] && !ContainsDeadlock((int)zone["gameid"]))
+                    if ((bool)zone["captured"])
+                    {
+                        if ((int)zone["leader"]["accountid"] == REP_CLAN) p.clan_captured += 1;
+                    }
+                    else if (!ContainsDeadlock((int)zone["gameid"]))
                     {
                         Zone z = new Zone
                         {
@@ -313,7 +330,7 @@ namespace SalienBot
                             difficulty = (int)zone["difficulty"],
                             capture_progress = (double)zone["capture_progress"],
                             clans = new List<Clan>(),
-                            clan_lead = 5
+                            rep_clan_lead = 5
                         };
 
                         if (z.zone_position < START_ZONE)
@@ -322,27 +339,34 @@ namespace SalienBot
                             z.zone_offset = z.zone_position - START_ZONE;
 
                         var clans = zone["top_clans"];
-                        var i = 0;
-
-                        foreach (JToken ct in clans)
+                        if (clans != null)
                         {
-                            Clan c = new Clan
+                            var i = 0;
+                            foreach (JToken ct in clans)
                             {
-                                id = (int)ct["accountid"],
-                                name = (string)ct["name"]
-                            };
+                                Clan c = new Clan
+                                {
+                                    id = (int)ct["accountid"],
+                                    name = (string)ct["name"]
+                                };
 
-                            if (c.id == REP_CLAN) z.clan_lead = i;
+                                if (c.id == REP_CLAN) z.rep_clan_lead = i;
 
-                            z.clans.Add(c);
+                                z.clans.Add(c);
 
-                            i++;
+                                i++;
+                            }
                         }
+                        
 
                         p.availableZones.Add(z);
                     }
                 }
 
+                foreach (Zone z in p.availableZones)
+                {
+                    z.planet_clan_captured = p.clan_captured;
+                }
                 ActivePlanets.Add(p);
             }
         }
@@ -372,10 +396,10 @@ namespace SalienBot
                             allZones = allZones.OrderByDescending(l => l.capture_progress).ToList();
                             break;
                         case 'L':
-                            allZones = allZones.OrderBy(l => l.clan_lead).ToList();
+                            allZones = allZones.OrderBy(l => l.rep_clan_lead).ToList();
                             break;
                         case 'l':
-                            allZones = allZones.OrderByDescending(l => l.clan_lead).ToList();
+                            allZones = allZones.OrderByDescending(l => l.rep_clan_lead).ToList();
                             break;
                         case 'D':
                             allZones = allZones.OrderBy(l => l.difficulty).ToList();
@@ -389,6 +413,12 @@ namespace SalienBot
                         case 'o':
                             allZones = allZones.OrderByDescending(l => l.zone_offset).ToList();
                             break;
+                        case 'C':
+                            allZones = allZones.OrderBy(l => l.planet_clan_captured).ToList();
+                            break;
+                        case 'c':
+                            allZones = allZones.OrderByDescending(l => l.planet_clan_captured).ToList();
+                            break;
                     }
                 }
 
@@ -398,7 +428,7 @@ namespace SalienBot
                         if (BestZoneCheck((int)allZones.First().capture_progress * 100, p.check_comp, p.check_val)) return allZones.First();
                         break;
                     case 'L':
-                        if (BestZoneCheck(allZones.First().clan_lead, p.check_comp, p.check_val)) return allZones.First();
+                        if (BestZoneCheck(allZones.First().rep_clan_lead, p.check_comp, p.check_val)) return allZones.First();
                         break;
                     case 'D':
                         if (BestZoneCheck(allZones.First().difficulty, p.check_comp, p.check_val)) return allZones.First();
@@ -406,7 +436,8 @@ namespace SalienBot
                     case 'O':
                         if (BestZoneCheck(allZones.First().zone_offset, p.check_comp, p.check_val)) return allZones.First();
                         break;
-                    default:
+                    case 'C':
+                        if (BestZoneCheck(allZones.First().planet_clan_captured, p.check_comp, p.check_val)) return allZones.First();
                         break;
                 }
 
@@ -441,7 +472,7 @@ namespace SalienBot
         public static bool ContainsDeadlock(int gameid)
         {
             bool contains = false;
-
+            
             foreach (Zone z in DEADLOCKS)
             {
                 if (z.zone_id == gameid)
@@ -453,7 +484,7 @@ namespace SalienBot
 
             return contains;
         }
-
+        
         public static PlayerInfo GetPlayerInfo()
         {
             JToken response = DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/GetPlayerInfo"));
@@ -464,7 +495,8 @@ namespace SalienBot
                 next_level_exp = (int)response["next_level_score"],
                 level = (int)response["level"],
                 time_on_planet = 0,
-                active_planet = null
+                active_planet = null,
+                clanid = 0
             };
 
             try
@@ -474,7 +506,137 @@ namespace SalienBot
             }
             catch (Exception e) { }
 
+            try
+            {
+                pi.clanid = (int)response["clan_info"]["accountid"];
+            }
+            catch (Exception e) { }
+
             return pi;
+        }
+
+        public static void RepresentClan()
+        {
+            DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/RepresentClan"), "clanid=" + REP_CLAN);
+        }
+
+        public static string ClansToString(List<Clan> Clans, int Count)
+        {
+            string clanstring = "";
+            int counter = 1;
+
+            foreach (Clan c in Clans)
+            {
+                clanstring += c.name + "; ";
+
+                if (counter >= Count) { break; }
+                counter++;
+            }
+
+            return clanstring.TrimEnd(';', ' ');
+        }
+
+        public static void ExceptionHandling(Exception exception)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+
+            //compare to last exception
+            if (exception.Message == LAST_EXCEPTION.Message) { RE_TRIES2_COUNT++; }
+            else { RE_TRIES2_COUNT = 1; }
+
+            Console.WriteLine("Exception encountered, check log for details.");
+
+            //write log
+            try
+            {
+                //var file = File.OpenWrite("log.txt");
+                var file = new FileStream("log.txt", FileMode.Append);
+                StreamWriteLine("#-----------------------------", file);
+                StreamWriteLine("Time: " + DateTime.Now.ToString(), file);
+                StreamWriteLine("Exception count: " + RE_TRIES2_COUNT, file);
+                StreamWriteLine(exception.ToString(), file);
+                StreamWriteLine("#-----------------------------", file);
+                file.Close();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Exception while writing log file:");
+                Console.WriteLine(exception.Message);
+            }
+
+            //set last exception
+            LAST_EXCEPTION = exception;
+
+            //wait and return
+            if (RE_TRIES2_COUNT > RE_TRIES)
+            {
+                SleepCountdown(1000 * WAIT_TIME2 * Math.Min(RE_TRIES2_COUNT - RE_TRIES, 3), "Trying again in:");
+            }
+            else
+            {
+                SleepCountdown(1000 * WAIT_TIME * RE_TRIES2_COUNT, "Trying again in:");
+            }
+
+            Console.ResetColor();
+        }
+
+        public static void StreamWriteLine(string data, FileStream stream, int start = 0, int end = -1)
+        {
+            if (end > data.Length || end == -1)
+            {
+                end = data.Length;
+            }
+            if (start > data.Length-1 || start == end)
+            {
+                start = end - 1;
+            }
+            
+            stream.Write(Encoding.ASCII.GetBytes(data), start, end);
+
+            byte[] newline = Encoding.ASCII.GetBytes(Environment.NewLine);
+            stream.Write(newline, 0, newline.Length);
+        }
+
+        public static string ZoneIDToCoord(int ZoneID)
+        {
+            int row = 1;
+            int col = 65;
+            int cnt = 0;
+
+            for (int j = 1; j <= 8; j++)
+            {
+                for (int i = 1; i <= 12; i++)
+                {
+                    if (ZoneID == cnt) { return Convert.ToChar(col) + Convert.ToString(row); }
+                    col++;
+                    cnt++;
+                }
+                col = 65;
+                row++;
+            }
+
+            return "err";
+            //return Convert.ToChar(((ZoneID+1) % 12) + 64) + Convert.ToString(((ZoneID + 1) % 12));
+        }
+
+        public static void SleepCountdown(int Time, string Message)
+        {
+            int time_left = Time;
+            string message_time;
+
+            while (time_left > 0)
+            {
+                message_time = Message + " " +  (time_left / 1000) + " seconds...";
+
+                Console.Write("\r{0}   ", message_time);
+
+                Thread.Sleep(Math.Min(1000, time_left));
+
+                time_left = time_left - Math.Min(1000, Time);
+            }
+
+            message_time = Message + " " + (Time / 1000) + " seconds... Done.";
+            Console.WriteLine("\r{0}   ", message_time);
         }
 
         public static JToken ParseResponse(string response)
