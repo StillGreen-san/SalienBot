@@ -32,7 +32,7 @@ namespace SalienBot
         public double capture_progress;
 
         public List<Clan> clans;
-        public int clan_lead;
+        public int rep_clan_lead;
     }
 
     class Planet
@@ -80,8 +80,8 @@ namespace SalienBot
         public static int START_ZONE = 45;
         public static List<Priority> PRIORITIES = new List<Priority>()
         {
-            new Priority ("ODpL", 'L', '=', 0),
-            new Priority ("ODPL", ' ', ' ', 0)
+            new Priority ("CODpL", 'L', '=', 0),
+            new Priority ("CODPL", ' ', ' ', 0)
         };
         public static List<Zone> DEADLOCKS = new List<Zone>();
 
@@ -179,6 +179,7 @@ namespace SalienBot
 
             Zone bestZone = DeterminateBestZoneAndPlanet();
             PlayerInfo playerInfo = GetPlayerInfo();
+            if (playerInfo.clanid != REP_CLAN) RepresentClan();
 
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("------------------------------");
@@ -316,7 +317,7 @@ namespace SalienBot
                             difficulty = (int)zone["difficulty"],
                             capture_progress = (double)zone["capture_progress"],
                             clans = new List<Clan>(),
-                            clan_lead = 5
+                            rep_clan_lead = 5
                         };
 
                         if (z.zone_position < START_ZONE)
@@ -335,7 +336,7 @@ namespace SalienBot
                                 name = (string)ct["name"]
                             };
 
-                            if (c.id == REP_CLAN) z.clan_lead = i;
+                            if (c.id == REP_CLAN) z.rep_clan_lead = i;
 
                             z.clans.Add(c);
 
@@ -375,10 +376,10 @@ namespace SalienBot
                             allZones = allZones.OrderByDescending(l => l.capture_progress).ToList();
                             break;
                         case 'L':
-                            allZones = allZones.OrderBy(l => l.clan_lead).ToList();
+                            allZones = allZones.OrderBy(l => l.rep_clan_lead).ToList();
                             break;
                         case 'l':
-                            allZones = allZones.OrderByDescending(l => l.clan_lead).ToList();
+                            allZones = allZones.OrderByDescending(l => l.rep_clan_lead).ToList();
                             break;
                         case 'D':
                             allZones = allZones.OrderBy(l => l.difficulty).ToList();
@@ -401,7 +402,7 @@ namespace SalienBot
                         if (BestZoneCheck((int)allZones.First().capture_progress * 100, p.check_comp, p.check_val)) return allZones.First();
                         break;
                     case 'L':
-                        if (BestZoneCheck(allZones.First().clan_lead, p.check_comp, p.check_val)) return allZones.First();
+                        if (BestZoneCheck(allZones.First().rep_clan_lead, p.check_comp, p.check_val)) return allZones.First();
                         break;
                     case 'D':
                         if (BestZoneCheck(allZones.First().difficulty, p.check_comp, p.check_val)) return allZones.First();
@@ -478,6 +479,11 @@ namespace SalienBot
             catch (Exception e) { }
 
             return pi;
+        }
+
+        public static void RepresentClan()
+        {
+            DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/RepresentClan"), "clanid=" + REP_CLAN);
         }
 
         public static JToken ParseResponse(string response)
