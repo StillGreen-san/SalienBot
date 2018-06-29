@@ -334,22 +334,25 @@ namespace SalienBot
                             z.zone_offset = z.zone_position - START_ZONE;
 
                         var clans = zone["top_clans"];
-                        var i = 0;
-
-                        foreach (JToken ct in clans)
+                        if (clans != null)
                         {
-                            Clan c = new Clan
+                            var i = 0;
+                            foreach (JToken ct in clans)
                             {
-                                id = (int)ct["accountid"],
-                                name = (string)ct["name"]
-                            };
+                                Clan c = new Clan
+                                {
+                                    id = (int)ct["accountid"],
+                                    name = (string)ct["name"]
+                                };
 
-                            if (c.id == REP_CLAN) z.rep_clan_lead = i;
+                                if (c.id == REP_CLAN) z.rep_clan_lead = i;
 
-                            z.clans.Add(c);
+                                z.clans.Add(c);
 
-                            i++;
+                                i++;
+                            }
                         }
+                        
 
                         p.availableZones.Add(z);
                     }
@@ -510,6 +513,18 @@ namespace SalienBot
         public static void RepresentClan()
         {
             DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/RepresentClan"), "clanid=" + REP_CLAN);
+        }
+
+        public static void ExceptionHandling(Exception exception)
+        {
+            //compare to last exceptio
+
+            //write lo
+
+            //set last exception
+
+            //wait and return
+
         }
 
         public static JToken ParseResponse(string response)
