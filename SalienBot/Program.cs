@@ -574,7 +574,7 @@ namespace SalienBot
             if (RE_TRIES2_COUNT > RE_TRIES)
             {
                 Console.WriteLine("Wait for " + (WAIT_TIME2 * Math.Min(RE_TRIES2_COUNT, 3)) + " seconds and retry.");
-                Thread.Sleep(1000 * WAIT_TIME2 * RE_TRIES2_COUNT);
+                Thread.Sleep(1000 * WAIT_TIME2 * (RE_TRIES2_COUNT-RE_TRIES));
             }
             else
             {
