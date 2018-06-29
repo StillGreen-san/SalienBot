@@ -245,7 +245,7 @@ namespace SalienBot
                 i++;
             }
 
-            Console.WriteLine("Joined zone " + bestZone.zone_position + " in planet " + playerInfo.active_planet.name);
+            Console.WriteLine("Joined zone " + bestZone.zone_position + "/" + ZoneIDToCoord(bestZone.zone_position) + " in planet " + playerInfo.active_planet.name);
 
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("------------------------------");
@@ -600,6 +600,28 @@ namespace SalienBot
 
             byte[] newline = Encoding.ASCII.GetBytes(Environment.NewLine);
             stream.Write(newline, 0, newline.Length);
+        }
+
+        public static string ZoneIDToCoord(int ZoneID)
+        {
+            int row = 1;
+            int col = 65;
+            int cnt = 0;
+
+            for (int j = 1; j <= 8; j++)
+            {
+                for (int i = 1; i <= 12; i++)
+                {
+                    if (ZoneID == cnt) { return Convert.ToChar(col) + Convert.ToString(row); }
+                    col++;
+                    cnt++;
+                }
+                col = 65;
+                row++;
+            }
+
+            return "err";
+            //return Convert.ToChar(((ZoneID+1) % 12) + 64) + Convert.ToString(((ZoneID + 1) % 12));
         }
 
         public static JToken ParseResponse(string response)
