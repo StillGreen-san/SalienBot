@@ -525,6 +525,8 @@ namespace SalienBot
 
         public static void ExceptionHandling(Exception exception)
         {
+            Console.ForegroundColor = ConsoleColor.Red;
+
             //compare to last exception
             if (exception.Message == LAST_EXCEPTION.Message) { RE_TRIES2_COUNT++; }
             else { RE_TRIES2_COUNT = 1; }
@@ -564,6 +566,7 @@ namespace SalienBot
                 Thread.Sleep(1000 * WAIT_TIME * RE_TRIES2_COUNT);
             }
 
+            Console.ResetColor();
         }
 
         public static void StreamWriteLine(string data, FileStream stream, int start = 0, int end = -1)
