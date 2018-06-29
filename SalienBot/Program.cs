@@ -533,7 +533,7 @@ namespace SalienBot
                 counter++;
             }
 
-            return clanstring;
+            return clanstring.TrimEnd(';', ' ');
         }
 
         public static void ExceptionHandling(Exception exception)
@@ -628,14 +628,15 @@ namespace SalienBot
             {
                 message_time = Message + " " +  (time_left / 1000) + " seconds...";
 
-                Console.Write("\r{0}", message_time);
-
-                time_left = time_left - Math.Min(1000, Time);
+                Console.Write("\r{0}   ", message_time);
 
                 Thread.Sleep(Math.Min(1000, time_left));
+
+                time_left = time_left - Math.Min(1000, Time);
             }
 
-            Console.WriteLine(Message + " " +  (Time / 1000) + " seconds... Done.");
+            message_time = Message + " " + (Time / 1000) + " seconds... Done.";
+            Console.WriteLine("\r{0}   ", message_time);
         }
 
         public static JToken ParseResponse(string response)
