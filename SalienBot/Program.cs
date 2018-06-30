@@ -154,7 +154,7 @@ namespace SalienBot
 
         public static void Iteration()
         {
-            refreshPrioritiesConfig();
+            //refreshPrioritiesConfig();
             getMainConfig();
             RefreshData();
             //removes zone older than 10 min from DEADLOCK list
@@ -406,9 +406,49 @@ namespace SalienBot
                                                     }
                                                     else
                                                     {
-                                                        Console.ForegroundColor = ConsoleColor.DarkRed;
-                                                        Console.WriteLine("fournd no Configuration for " + split[0] + "in line " + i + " in main settings file, skipping.");
-                                                        Console.ResetColor();
+                                                        if (split[0] == "priorities")
+                                                        {
+
+                                                            string[] Configs = split[1].Trim('"', ' ').Split('|');
+                                                            List<Priority> prio = new List<Priority>();
+
+                                                            foreach (string config in Configs)
+                                                            {
+                                                                if (config.Length >= 7)
+                                                                {
+                                                                    string[] values = config.Split(',');
+                                                                    if (values.Length == 4)
+                                                                    {
+                                                                        prio.Add(new Priority(values[0].Trim(), Convert.ToChar(values[1]), Convert.ToChar(values[2]), Convert.ToInt32(values[3])));
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        Console.ForegroundColor = ConsoleColor.DarkRed;
+                                                                        Console.WriteLine("wrong format, check line " + i + " in priorities file, skipping.");
+                                                                        Console.ResetColor();
+                                                                    }
+                                                                }
+                                                                else
+                                                                {
+                                                                    Console.ForegroundColor = ConsoleColor.DarkRed;
+                                                                    Console.WriteLine("wrong format, check line " + i + " in priorities file, skipping.");
+                                                                    Console.ResetColor();
+                                                                }
+
+                                                            }
+
+                                                            if (prio.Count > 0)
+                                                            {
+                                                                PRIORITIES.Clear();
+                                                                PRIORITIES.AddRange(prio);
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            Console.ForegroundColor = ConsoleColor.DarkRed;
+                                                            Console.WriteLine("fournd no Configuration for " + split[0] + "in line " + i + " in main settings file, skipping.");
+                                                            Console.ResetColor();
+                                                        }
                                                     }
                                                 }
                                             }
@@ -437,7 +477,7 @@ namespace SalienBot
             }
         }
 
-        public static void refreshPrioritiesConfig()
+       /* public static void refreshPrioritiesConfig()
         {
             try
             {
@@ -488,7 +528,7 @@ namespace SalienBot
                 Console.ResetColor();
                 ExceptionHandling(e);
             }
-        }
+        }*/
 
         public static Zone DeterminateBestZoneAndPlanet()
         {
