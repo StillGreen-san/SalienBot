@@ -104,7 +104,7 @@ namespace SalienBot
             try
             {
                 string line = File.ReadAllLines("access_token.txt")[0];
-                ACCESS_TOKEN = line.Trim(' ','"',',','.');
+                ACCESS_TOKEN = line;
             }
             catch (Exception e)
             {
@@ -120,6 +120,7 @@ namespace SalienBot
                 Console.WriteLine("Paste token down here:");
                 ACCESS_TOKEN = Console.ReadLine();
             }
+            ACCESS_TOKEN.Trim(' ', '"', ',', '.');
             if (ACCESS_TOKEN.Length != 32)
             {
                 Console.WriteLine("Token seems wrong!");
@@ -147,14 +148,14 @@ namespace SalienBot
                 }
                 catch (Exception e)
                 {
-                    ExceptionHandling(e);
+                    
                 }
             }
         }
 
         public static void Iteration()
         {
-            //refreshPrioritiesConfig();
+            
             getMainConfig();
             RefreshData();
             //removes zone older than 10 min from DEADLOCK list
@@ -361,101 +362,85 @@ namespace SalienBot
                     foreach (string Line in lines)
                     {
                         i++;
+                        
                         if (Line.Length >= 7)
                         {
                             string[] split = Line.Split(':');
-                            if (split[0] == "ROUND_TIME")
+                            switch (split[0])
                             {
-                                ROUND_TIME = Convert.ToInt32(split[1].Trim('"', ' '));
-                            }
-                            else
-                            {
-                                if (split[0] == "WAIT_TIME")
-                                {
+                                case "ROUND_TIME":
+
+                                    ROUND_TIME = Convert.ToInt32(split[1].Trim('"', ' '));
+                                    break;
+                                case "WAIT_TIME":
+
                                     WAIT_TIME = Convert.ToInt32(split[1].Trim('"', ' '));
-                                }
-                                else
-                                {
-                                    if (split[0] == "RE_TRIES")
+                                    break;
+                                case "RE_TRIES":
+
+                                    RE_TRIES = Convert.ToInt32(split[1].Trim('"', ' '));
+                                    break;
+                                case "WAIT_TIME2":
+
+                                    WAIT_TIME2 = Convert.ToInt32(split[1].Trim('"', ' '));
+                                    break;
+                                case "RE_TRIES2":
+
+                                    RE_TRIES2 = Convert.ToInt32(split[1].Trim('"', ' '));
+                                    break;
+                                case "REP_CLAN":
+
+                                    REP_CLAN = Convert.ToInt32(split[1].Trim('"', ' '));
+                                    break;
+                                case "START_ZONE":
+
+                                    START_ZONE = Convert.ToInt32(split[1].Trim('"', ' '));
+                                    break;
+                                case "priorities":
+
+                                    string[] Configs = split[1].Trim('"', ' ').Split('|');
+                                    List<Priority> prio = new List<Priority>();
+
+                                    foreach (string config in Configs)
                                     {
-                                        RE_TRIES = Convert.ToInt32(split[1].Trim('"', ' '));
-                                    }
-                                    else
-                                    {
-                                        if (split[0] == "WAIT_TIME2")
+                                        if (config.Length >= 7)
                                         {
-                                            WAIT_TIME2 = Convert.ToInt32(split[1].Trim('"', ' '));
-                                        }
-                                        else
-                                        {
-                                            if (split[0] == "RE_TRIES2")
+                                            string[] values = config.Split(',');
+                                            if (values.Length == 4)
                                             {
-                                                RE_TRIES2 = Convert.ToInt32(split[1].Trim('"', ' '));
+                                                prio.Add(new Priority(values[0].Trim(), Convert.ToChar(values[1]), Convert.ToChar(values[2]), Convert.ToInt32(values[3])));
                                             }
                                             else
                                             {
-                                                if (split[0] == "REP_CLAN")
-                                                {
-                                                    REP_CLAN = Convert.ToInt32(split[1].Trim('"', ' '));
-                                                }
-                                                else
-                                                {
-                                                    if (split[0] == "START_ZONE")
-                                                    {
-                                                        START_ZONE = Convert.ToInt32(split[1].Trim('"', ' '));
-                                                    }
-                                                    else
-                                                    {
-                                                        if (split[0] == "priorities")
-                                                        {
-
-                                                            string[] Configs = split[1].Trim('"', ' ').Split('|');
-                                                            List<Priority> prio = new List<Priority>();
-
-                                                            foreach (string config in Configs)
-                                                            {
-                                                                if (config.Length >= 7)
-                                                                {
-                                                                    string[] values = config.Split(',');
-                                                                    if (values.Length == 4)
-                                                                    {
-                                                                        prio.Add(new Priority(values[0].Trim(), Convert.ToChar(values[1]), Convert.ToChar(values[2]), Convert.ToInt32(values[3])));
-                                                                    }
-                                                                    else
-                                                                    {
-                                                                        Console.ForegroundColor = ConsoleColor.DarkRed;
-                                                                        Console.WriteLine("wrong format, check line " + i + " in priorities file, skipping.");
-                                                                        Console.ResetColor();
-                                                                    }
-                                                                }
-                                                                else
-                                                                {
-                                                                    Console.ForegroundColor = ConsoleColor.DarkRed;
-                                                                    Console.WriteLine("wrong format, check line " + i + " in priorities file, skipping.");
-                                                                    Console.ResetColor();
-                                                                }
-
-                                                            }
-
-                                                            if (prio.Count > 0)
-                                                            {
-                                                                PRIORITIES.Clear();
-                                                                PRIORITIES.AddRange(prio);
-                                                            }
-                                                        }
-                                                        else
-                                                        {
-                                                            Console.ForegroundColor = ConsoleColor.DarkRed;
-                                                            Console.WriteLine("fournd no Configuration for " + split[0] + "in line " + i + " in main settings file, skipping.");
-                                                            Console.ResetColor();
-                                                        }
-                                                    }
-                                                }
+                                                Console.ForegroundColor = ConsoleColor.DarkRed;
+                                                Console.WriteLine("wrong format, check line " + i + " in priorities file, skipping.");
+                                                Console.ResetColor();
                                             }
                                         }
+                                        else
+                                        {
+                                            Console.ForegroundColor = ConsoleColor.DarkRed;
+                                            Console.WriteLine("wrong format, check line " + i + " in priorities file, skipping.");
+                                            Console.ResetColor();
+                                        }
+
                                     }
-                                }
+
+                                    if (prio.Count > 0)
+                                    {
+                                        PRIORITIES.Clear();
+                                        PRIORITIES.AddRange(prio);
+                                    }
+
+                            break;
+                                default:
+                                    Console.ForegroundColor = ConsoleColor.DarkRed;
+                                    Console.WriteLine("fournd no Configuration for " + split[0] + "in line " + i + " in main settings file, skipping.");
+                                    Console.ResetColor();
+                                    break;
+
                             }
+                           
                         }
                         else
                         {
@@ -463,10 +448,8 @@ namespace SalienBot
                             Console.WriteLine("wrong format, check line " + i + " in priorities file, skipping.");
                             Console.ResetColor();
                         }
-
                     }
                 }
-
             }
             catch (Exception e)
             {
@@ -476,59 +459,6 @@ namespace SalienBot
                 ExceptionHandling(e);
             }
         }
-
-       /* public static void refreshPrioritiesConfig()
-        {
-            try
-            {
-                string[] lines = File.ReadAllLines("priorities.txt");
-
-                if (lines.Length > 0)
-                {
-                    List<Priority> prios = new List<Priority>();
-
-                    for (int i = 0; i < lines.Length; i++)
-                    {
-                        if (lines[i].Length >= 7)
-                        {
-                            string[] split = lines[i].Split(',');
-                            if (split.Length == 4)
-                            {
-                                prios.Add(new Priority(split[0].Trim(), Convert.ToChar(split[1]), Convert.ToChar(split[2]), Convert.ToInt32(split[3])));
-                            }
-                            else
-                            {
-                                Console.ForegroundColor = ConsoleColor.DarkRed;
-                                Console.WriteLine("wrong format, check line " + i + " in priorities file, skipping.");
-                                Console.ResetColor();
-                            }
-                        }
-                        else
-                        {
-                            Console.ForegroundColor = ConsoleColor.DarkRed;
-                            Console.WriteLine("wrong format, check line " + i + " in priorities file, skipping.");
-                            Console.ResetColor();
-                        }
-
-                    }
-
-                    if (prios.Count > 0)
-                    {
-                        PRIORITIES.Clear();
-                        PRIORITIES.AddRange(prios);
-                    }
-
-                }
-
-            }
-            catch (Exception e)
-            {
-                Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine("unexpected error occured in refreshPrioritiesConfig " + e);
-                Console.ResetColor();
-                ExceptionHandling(e);
-            }
-        }*/
 
         public static Zone DeterminateBestZoneAndPlanet()
         {
@@ -665,7 +595,7 @@ namespace SalienBot
             }
             catch (Exception e)
             {
-                ExceptionHandling(e);
+                
             }
 
             try
@@ -674,7 +604,7 @@ namespace SalienBot
             }
             catch (Exception e)
             {
-                ExceptionHandling(e);
+                
             }
 
             return pi;
