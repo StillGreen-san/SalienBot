@@ -99,6 +99,8 @@ namespace SalienBot
 
         static List<Planet> ActivePlanets = new List<Planet>();
 
+        public static Random rnd = new Random();
+
         public static string BuildUrl(string method)
         {
             return "https://community.steam-api.com/" + method + "/v0001/";
@@ -288,45 +290,6 @@ namespace SalienBot
             }
             else
             {
-                /*
-                heal = 7
-                print("Joined boss zone: {}".format(str(zone_position)))
-                while 1:
-                    sleep(5)
-                    if heal == 0:
-                        use_heal = 1
-                        heal = 7
-                    else:
-                        use_heal = 0
-                    damage_data = {
-                        'access_token': TOKEN,
-                        'use_heal_ability': use_heal,
-                        'damage_to_boss': 1,
-                        'damage_taken': 0
-                    }   
-                    result = s.post("https://community.steam-api.com/ITerritoryControlMinigameService/ReportBossDamage/v0001/", data=damage_data)
-                    if result.status_code != 200 or result.json() == {'response':{}}:
-                        print("Report boss score errored... retrying")
-                        continue
-                    res = result.json()["response"]
-                    if res["waiting_for_players"]:
-                        continue
-                    if res["game_over"]:
-                        break
-                    print("Boss HP: {}/{} \n".format(
-                        res["boss_status"]["boss_hp"],
-                        res["boss_status"]["boss_max_hp"]))
-                    for player in res["boss_status"]["boss_players"]:
-                        STEAM3ID = steam64_to_steam3(STEAMID)
-                        if player["accountid"] == STEAM3ID or STEAM3ID == "":
-                            print("Name: {} | HP: {}/{} | XP Earned: {}".format(
-                                player["name"],
-                                player["hp"],
-                                player["max_hp"],
-                                player["xp_earned"]))
-                    heal = heal - 1 
-                 */
-
                 int heal_cooldown = 18;
                 int use_heal = 0;
                 int l = 1;
@@ -340,32 +303,52 @@ namespace SalienBot
                         use_heal = 1;
                     }
                     else { use_heal = 0; }
-                    JToken boss_resp = DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/ReportBossDamage"), "use_heal_ability=" + use_heal +"&damage_to_boss" + 1 + "&damage_taken" + 0);
-                    if (boss_resp.HasValues)
+                    JToken boss_resp = DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/ReportBossDamage"), "use_heal_ability=" + use_heal +"&damage_to_boss=" + rnd.Next(1, 40) + "&damage_taken=" + 0);
+                    if (!boss_resp.HasValues)
                     {
-                        if (l > RE_TRIES) { break; }
+                        if (l > RE_TRIES)
+                        {
+                            Console.WriteLine();
+                            Console.WriteLine("To many errors, retry.");
+                            break;
+                        }
                         l++;
                         continue;
                     }
                     if ((bool)boss_resp["waiting_for_players"]) { continue; }
-                    if ((bool)boss_resp["game_over"]) { break; }
-                    Console.WriteLine("Boss HP: {0}/{1}", boss_resp["boss_hp"], boss_resp["boss_max_hp"]);
+                    if ((bool)boss_resp["game_over"])
+                    {
+                        Console.WriteLine();
+                        Console.WriteLine("Bossfight over.");
+                        break;
+                    }
+                    /*Console.WriteLine("Boss HP: {0}/{1}", boss_resp["boss_status"]["boss_hp"], boss_resp["boss_status"]["boss_max_hp"]);
                     JToken players = boss_resp.SelectToken("boss_status").SelectToken("boss_players");
                     foreach (JToken p in players)
                     {
                         if ((int)p["accountid"] == STEAMID)
                         {
-                            Console.WriteLine("HP: {0}/{1} XP+: {2}", p["hp"], p["max_hp"], p["xp_earned"]);
+                            Console.WriteLine("Your HP: {0}/{1} XP+: {2}", p["hp"], p["max_hp"], p["xp_earned"]);
                         }
                         else if (STEAMID == 0)
                         {
                             Console.WriteLine("Name: {0} HP: {1}/{2} XP+: {3}", p["name"], p["hp"], p["max_hp"], p["xp_earned"]);
                         }
+                    }*/
+                    string status = "Boss HP: " +(string)boss_resp["boss_status"]["boss_hp"] + "/" + (string)boss_resp["boss_status"]["boss_max_hp"];
+                    
+                    JToken players = boss_resp.SelectToken("boss_status").SelectToken("boss_players");
+                    foreach (JToken p in players)
+                    {
+                        if ((int)p["accountid"] == STEAMID)
+                        {
+                            status += " | Your HP: " + (string)p["hp"] + "/" + (string)p["max_hp"] + "XP:" + (string)p["xp_earned"];
+                        }
                     }
+                    Console.Write("\r{0}   ", status);
                     heal_cooldown--;
                 }
-
-                
+                Console.WriteLine();
             }
         }
 
@@ -614,8 +597,7 @@ namespace SalienBot
             {
                 prios += p.order + "," + p.check_type + "," + p.check_comp + "," + p.check_val + ";";
             }
-
-            StreamWriteLine("PRIORITIES:\""+ prios.TrimEnd(Environment.NewLine.ToCharArray()) + "\"", stream);
+            StreamWriteLine("PRIORITIES:\""+ prios.TrimEnd(';') + "\"", stream);
 
             stream.Close();
         }
