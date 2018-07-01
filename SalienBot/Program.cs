@@ -85,6 +85,7 @@ namespace SalienBot
         static int RE_TRIES2_COUNT = 0;
         static string ACCESS_TOKEN;
         public static int REP_CLAN = 148845;
+        public static int STEAMID = 0;
         public static int START_ZONE = 45;
         public static List<Priority> PRIORITIES = new List<Priority>()
         {
@@ -313,9 +314,13 @@ namespace SalienBot
                     JToken players = boss_resp.SelectToken("boss_status").SelectToken("boss_players");
                     foreach (JToken p in players)
                     {
-                        if ((int)p["accountid"] == 76561197981822407 - 76561197960265728)
+                        if ((int)p["accountid"] == STEAMID)
                         {
                             Console.WriteLine("HP: {0}/{1} XP+: {2}", p["hp"], p["max_hp"], p["xp_earned"]);
+                        }
+                        else if (STEAMID == 0)
+                        {
+                            Console.WriteLine("Name: {0} HP: {1}/{2} XP+: {3}", p["name"], p["hp"], p["max_hp"], p["xp_earned"]);
                         }
                     }
                     heal_cooldown--;
@@ -448,7 +453,10 @@ namespace SalienBot
         {
             try
             {
-                string[] lines = File.ReadAllLines("MainConfig.txt");
+                string[] lines;
+
+                if (File.Exists("MainConfig.txt")) {  lines = File.ReadAllLines("MainConfig.txt"); }
+                else { return; }
 
                 if (lines.Length > 0)
                 {
@@ -465,35 +473,30 @@ namespace SalienBot
                             switch (split[0])
                             {
                                 case "ROUND_TIME":
-
                                     ROUND_TIME = Convert.ToInt32(split[1].Trim('"', ' '));
                                     break;
                                 case "WAIT_TIME":
-
                                     WAIT_TIME = Convert.ToInt32(split[1].Trim('"', ' '));
                                     break;
                                 case "RE_TRIES":
-
                                     RE_TRIES = Convert.ToInt32(split[1].Trim('"', ' '));
                                     break;
                                 case "WAIT_TIME2":
-
                                     WAIT_TIME2 = Convert.ToInt32(split[1].Trim('"', ' '));
                                     break;
                                 case "RE_TRIES2":
-
                                     RE_TRIES2 = Convert.ToInt32(split[1].Trim('"', ' '));
                                     break;
                                 case "REP_CLAN":
-
                                     REP_CLAN = Convert.ToInt32(split[1].Trim('"', ' '));
                                     break;
+                                case "STEAMID":
+                                    STEAMID = SteamIDparse(Convert.ToInt64(split[1].Trim('"', ' ')));
+                                    break;
                                 case "START_ZONE":
-
                                     START_ZONE = Convert.ToInt32(split[1].Trim('"', ' '));
                                     break;
                                 case "priorities":
-
                                     string[] Configs = split[1].Trim('"', ' ').Split('|');
                                     List<Priority> prio = new List<Priority>();
 
@@ -698,19 +701,13 @@ namespace SalienBot
                 pi.time_on_planet = (int)response["time_on_planet"];
                 pi.active_planet = ActivePlanets.Find(x => x.id == (int)response["active_planet"]);
             }
-            catch (Exception e)
-            {
-                
-            }
+            catch (Exception e) { }
 
             try
             {
                 pi.clanid = (int)response["clan_info"]["accountid"];
             }
-            catch (Exception e)
-            {
-                
-            }
+            catch (Exception e) { }
 
             return pi;
         }
@@ -839,6 +836,13 @@ namespace SalienBot
 
             message_time = Message + " " + (Time / 1000) + " seconds... Done.";
             Console.WriteLine("\r{0}   ", message_time);
+        }
+
+        public static int SteamIDparse(Int64 ID64)
+        {
+            if (ID64 > 76561197960265728) { ID64 -= 76561197960265728; }
+
+            return (int)ID64;
         }
 
         public static JToken ParseResponse(string response)
