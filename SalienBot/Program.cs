@@ -31,6 +31,8 @@ namespace SalienBot
         public int difficulty;
         public double capture_progress;
 
+        public int active_boss;
+
         public List<Clan> clans;
         public int rep_clan_lead;
 
@@ -86,6 +88,7 @@ namespace SalienBot
         public static int START_ZONE = 45;
         public static List<Priority> PRIORITIES = new List<Priority>()
         {
+            new Priority ("Pb", 'B', '=', 1),
             new Priority ("CODpL", 'L', '=', 0),
             new Priority ("CODPL", ' ', ' ', 0)
         };
@@ -212,22 +215,26 @@ namespace SalienBot
                 DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/JoinPlanet"), "id=" + bestZone.planet_id);
             }
 
-            /*JToken zone_join_resp = DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/JoinZone"), "zone_position=" + bestZone.zone_position);
-            if (!zone_join_resp.HasValues)
-            {
-                Console.WriteLine("Couldn't join zone " + bestZone.zone_position + "!");
-                return;
-            }*/
-
             int i = 0;
             while (true)
             {
-                JToken zone_join_resp = DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/JoinZone"), "zone_position=" + bestZone.zone_position);
-                if (zone_join_resp.HasValues)
+                if (bestZone.active_boss != 1)
                 {
-                    break;
+                    JToken zone_join_resp = DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/JoinZone"), "zone_position=" + bestZone.zone_position);
+                    if (zone_join_resp.HasValues)
+                    {
+                        break;
+                    }
                 }
-
+                else
+                {
+                    JToken zone_join_resp = DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/JoinBossZone"), "zone_position=" + bestZone.zone_position);
+                    if (zone_join_resp.HasValues)
+                    {
+                        break;
+                    }
+                }
+                
                 Console.WriteLine("Couldn't join zone " + bestZone.zone_position + "!");
                 
                 if (i >= RE_TRIES)
@@ -244,19 +251,101 @@ namespace SalienBot
                 i++;
             }
 
-            Console.WriteLine("Joined zone " + bestZone.zone_position + "/" + ZoneIDToCoord(bestZone.zone_position) + " in planet " + playerInfo.active_planet.name);
+            if (bestZone.active_boss != 1)
+            {
 
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("------------------------------");
-            Console.WriteLine("Current zone captured: " + (bestZone.capture_progress * 100).ToString("#.##") + "%");
-            Console.WriteLine("Current zone leaders: " + ClansToString(bestZone.clans, 3));
-            Console.WriteLine("Current planet captured: " + (playerInfo.active_planet.capture_progress * 100).ToString("#.##") + "%");
-            Console.WriteLine("Current planet players: " + playerInfo.active_planet.current_players);
-            Console.WriteLine("------------------------------");
-            Console.ResetColor();
-            SleepCountdown(1000 * ROUND_TIME, "Waiting for round to end:");
+                Console.WriteLine("Joined zone " + bestZone.zone_position + "/" + ZoneIDToCoord(bestZone.zone_position) + " in planet " + playerInfo.active_planet.name);
 
-            ReportScore(GetScoreFromDifficulty(bestZone.difficulty));
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("------------------------------");
+                Console.WriteLine("Current zone captured: " + (bestZone.capture_progress * 100).ToString("#.##") + "%");
+                Console.WriteLine("Current zone leaders: " + ClansToString(bestZone.clans, 3));
+                Console.WriteLine("Current planet captured: " + (playerInfo.active_planet.capture_progress * 100).ToString("#.##") + "%");
+                Console.WriteLine("Current planet players: " + playerInfo.active_planet.current_players);
+                Console.WriteLine("------------------------------");
+                Console.ResetColor();
+                SleepCountdown(1000 * ROUND_TIME, "Waiting for round to end:");
+
+                ReportScore(GetScoreFromDifficulty(bestZone.difficulty));
+
+            }
+            else
+            {
+                /*
+                heal = 7
+                print("Joined boss zone: {}".format(str(zone_position)))
+                while 1:
+                    sleep(5)
+                    if heal == 0:
+                        use_heal = 1
+                        heal = 7
+                    else:
+                        use_heal = 0
+                    damage_data = {
+                        'access_token': TOKEN,
+                        'use_heal_ability': use_heal,
+                        'damage_to_boss': 1,
+                        'damage_taken': 0
+                    }   
+                    result = s.post("https://community.steam-api.com/ITerritoryControlMinigameService/ReportBossDamage/v0001/", data=damage_data)
+                    if result.status_code != 200 or result.json() == {'response':{}}:
+                        print("Report boss score errored... retrying")
+                        continue
+                    res = result.json()["response"]
+                    if res["waiting_for_players"]:
+                        continue
+                    if res["game_over"]:
+                        break
+                    print("Boss HP: {}/{} \n".format(
+                        res["boss_status"]["boss_hp"],
+                        res["boss_status"]["boss_max_hp"]))
+                    for player in res["boss_status"]["boss_players"]:
+                        STEAM3ID = steam64_to_steam3(STEAMID)
+                        if player["accountid"] == STEAM3ID or STEAM3ID == "":
+                            print("Name: {} | HP: {}/{} | XP Earned: {}".format(
+                                player["name"],
+                                player["hp"],
+                                player["max_hp"],
+                                player["xp_earned"]))
+                    heal = heal - 1 
+                 */
+
+                int heal_cooldown = 18;
+                int use_heal = 0;
+                int l = 1;
+
+                while (true)
+                {
+                    Thread.Sleep(5000);
+                    if (heal_cooldown == 0)
+                    {
+                        heal_cooldown = 18;
+                        use_heal = 1;
+                    }
+                    else { use_heal = 0; }
+                    JToken boss_resp = DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/ReportBossDamage"), "use_heal_ability=" + use_heal +"&damage_to_boss" + 1 + "&damage_taken" + 0);
+                    if (boss_resp.HasValues)
+                    {
+                        if (l > RE_TRIES) { break; }
+                        l++;
+                        continue;
+                    }
+                    if ((bool)boss_resp["waiting_for_players"]) { continue; }
+                    if ((bool)boss_resp["game_over"]) { break; }
+                    Console.WriteLine("Boss HP: {0}/{1}", boss_resp["boss_hp"], boss_resp["boss_max_hp"]);
+                    JToken players = boss_resp.SelectToken("boss_status").SelectToken("boss_players");
+                    foreach (JToken p in players)
+                    {
+                        if ((int)p["accountid"] == 76561197981822407 - 76561197960265728)
+                        {
+                            Console.WriteLine("HP: {0}/{1} XP+: {2}", p["hp"], p["max_hp"], p["xp_earned"]);
+                        }
+                    }
+                    heal_cooldown--;
+                }
+
+                
+            }
         }
 
         private static void ReportScore(int score)
@@ -315,6 +404,7 @@ namespace SalienBot
 
                 foreach (JToken zone in zones)
                 {
+                    if (zone["gameid"] == null || zone["zone_position"] == null || zone["difficulty"] == null  || zone["capture_progress"] == null) { continue; }
                     if ((bool)zone["captured"])
                     {
                         if ((int)zone["leader"]["accountid"] == REP_CLAN) p.clan_captured += 1;
@@ -329,9 +419,15 @@ namespace SalienBot
                             zone_id = (int)zone["gameid"],
                             difficulty = (int)zone["difficulty"],
                             capture_progress = (double)zone["capture_progress"],
+                            active_boss = 0,
                             clans = new List<Clan>(),
                             rep_clan_lead = 5
                         };
+
+                        if ((int)zone["type"] == 4 && (bool)zone["boss_active"])
+                        {
+                            z.active_boss = 1;
+                        }
 
                         if (z.zone_position < START_ZONE)
                             z.zone_offset = START_ZONE - z.zone_position;
@@ -419,6 +515,12 @@ namespace SalienBot
                         case 'c':
                             allZones = allZones.OrderByDescending(l => l.planet_clan_captured).ToList();
                             break;
+                        case 'B':
+                            allZones = allZones.OrderBy(l => l.active_boss).ToList();
+                            break;
+                        case 'b':
+                            allZones = allZones.OrderByDescending(l => l.active_boss).ToList();
+                            break;
                     }
                 }
 
@@ -438,6 +540,9 @@ namespace SalienBot
                         break;
                     case 'C':
                         if (BestZoneCheck(allZones.First().planet_clan_captured, p.check_comp, p.check_val)) return allZones.First();
+                        break;
+                    case 'B':
+                        if (BestZoneCheck(allZones.First().active_boss, p.check_comp, p.check_val)) return allZones.First();
                         break;
                 }
 
@@ -555,6 +660,7 @@ namespace SalienBot
                 StreamWriteLine("Time: " + DateTime.Now.ToString(), file);
                 StreamWriteLine("Exception count: " + RE_TRIES2_COUNT, file);
                 StreamWriteLine(exception.ToString(), file);
+                StreamWriteLine(exception.InnerException.StackTrace, file);
                 StreamWriteLine("#-----------------------------", file);
                 file.Close();
             }
