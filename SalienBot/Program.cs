@@ -183,6 +183,22 @@ namespace SalienBot
                 Console.ResetColor();
             }
 
+            if (STEAMID == 0)
+            {
+                Console.WriteLine("No SteamID in file! It is not necessary, but");
+                Console.WriteLine("please get it from here: https://steamcommunity.com/saliengame/gettoken");
+                Console.WriteLine("Paste ID down here: (Or just hit enter.)");
+                string line = Console.ReadLine();
+                if (line.Length > 3)
+                {
+                    try
+                    {
+                        STEAMID = SteamIDparse(Convert.ToInt64(line.Trim('"')));
+                    }
+                    catch (Exception e) { Console.WriteLine("Not a number? Skip.."); }
+                }
+            }
+
             WriteConfigToFile();
 
             while (true)
