@@ -76,6 +76,8 @@ namespace SalienBot
 
     class Program
     {
+        public static string CONFIG_FILE_PATH = "config.txt";
+
         static int ROUND_TIME = 120;
         static int WAIT_TIME = 5;
         static int RE_TRIES = 3;
@@ -83,7 +85,7 @@ namespace SalienBot
         static int WAIT_TIME2 = 300;
         static int RE_TRIES2 = 2;
         static int RE_TRIES2_COUNT = 0;
-        static string ACCESS_TOKEN;
+        static string ACCESS_TOKEN = "";
         public static int REP_CLAN = 148845;
         public static int STEAMID = 0;
         public static int START_ZONE = 45;
@@ -104,45 +106,82 @@ namespace SalienBot
 
         static void Main(string[] args)
         {
-            #region get access token
-            try
-            {
-                string line = File.ReadAllLines("access_token.txt")[0];
-                ACCESS_TOKEN = line;
-            }
-            catch (Exception e)
-            {
-                Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine("unexpected error occured in Main region get access token " + e);
-                Console.ResetColor();
-                ExceptionHandling(e);
-            }
-            if (ACCESS_TOKEN == null || ACCESS_TOKEN == "")
-            {
-                Console.WriteLine("access_token file empty?");
-                Console.WriteLine("Please get a token from here: https://steamcommunity.com/saliengame/gettoken");
-                Console.WriteLine("Paste token down here:");
-                ACCESS_TOKEN = Console.ReadLine();
-            }
-            ACCESS_TOKEN.Trim(' ', '"', ',', '.');
-            if (ACCESS_TOKEN.Length != 32)
-            {
-                Console.WriteLine("Token seems wrong!");
-                Console.WriteLine("Press Key to continue or close window.");
-            }
-            Console.WriteLine("Using and saving Token: " + ACCESS_TOKEN);
-            if(File.Exists("access_token.txt"))
-            {
-                File.WriteAllText("access_token.txt", ACCESS_TOKEN);
-            }
-            else
-            {
-                File.Create("access_token.txt");
-                File.WriteAllText("access_token.txt", ACCESS_TOKEN);
-            }
-            #endregion
+            GetConfigFromFile();
 
-            
+            //handling of old files
+
+            if (ACCESS_TOKEN.Length != 32)
+            {   
+                if (File.Exists("access_token.txt"))
+                {
+                    ACCESS_TOKEN = File.ReadAllLines("access_token.txt")[0];
+                }
+                else
+                {
+                    Console.WriteLine("No access_token in file?");
+                    Console.WriteLine("Please get a token from here: https://steamcommunity.com/saliengame/gettoken");
+                    Console.WriteLine("Paste token down here:");
+                    ACCESS_TOKEN = Console.ReadLine();
+                }
+                ACCESS_TOKEN.Trim(' ', '"', ',', '.');
+                if (ACCESS_TOKEN.Length != 32)
+                {
+                    Console.WriteLine("Token seems wrong!: {0}", ACCESS_TOKEN);
+                    Console.WriteLine("Press Key to continue or close window.");
+                    Console.Read();
+                }
+            }
+            if (File.Exists("access_token.txt")) { File.Delete("access_token.txt"); }
+
+            if (File.Exists("priorities.txt"))
+            {
+                Console.ForegroundColor = ConsoleColor.DarkYellow;
+                Console.WriteLine("Old properties file found.");
+                Console.WriteLine("Read from there? Y = Yes.");
+                var key = Console.ReadKey().KeyChar;
+                if (key == 'Y' || key == 'y')
+                {
+                    string[] lines = File.ReadAllLines("priorities.txt");
+
+                    if (lines.Length > 0)
+                    {
+                        List<Priority> prios = new List<Priority>();
+
+                        for (int i = 0; i < lines.Length; i++)
+                        {
+                            if (lines[i].Length >= 7)
+                            {
+                                string[] split = lines[i].Split(',');
+                                if (split.Length == 4)
+                                {
+                                    prios.Add(new Priority(split[0].Trim(), Convert.ToChar(split[1]), Convert.ToChar(split[2]), Convert.ToInt32(split[3])));
+                                }
+                                else
+                                {
+                                    Console.WriteLine("wrong format, check line " + i + " in priorities file, skipping.");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("wrong format, check line " + i + " in priorities file, skipping.");
+                            }
+
+                        }
+
+                        if (prios.Count > 0)
+                        {
+                            PRIORITIES.Clear();
+                            PRIORITIES.AddRange(prios);
+                        }
+
+                    }
+                }
+                File.Delete("priorities.txt");
+
+                Console.ResetColor();
+            }
+
+            WriteConfigToFile();
 
             while (true)
             {
@@ -152,7 +191,7 @@ namespace SalienBot
                 }
                 catch (Exception e)
                 {
-                    
+                    ExceptionHandling(e);
                 }
             }
         }
@@ -160,7 +199,7 @@ namespace SalienBot
         public static void Iteration()
         {
             
-            getMainConfig();
+            GetConfigFromFile();
             RefreshData();
             //removes zone older than 10 min from DEADLOCK list
             DEADLOCKS.RemoveAll(z => z.deadlock_time <= DateTime.Now.Subtract(TimeSpan.FromMinutes(10)));
@@ -449,24 +488,24 @@ namespace SalienBot
             }
         }
 
-        public static void getMainConfig()
+        public static void GetConfigFromFile()
         {
             try
             {
                 string[] lines;
 
-                if (File.Exists("MainConfig.txt")) {  lines = File.ReadAllLines("MainConfig.txt"); }
+                if (File.Exists(CONFIG_FILE_PATH)) {  lines = File.ReadAllLines(CONFIG_FILE_PATH); }
                 else { return; }
 
                 if (lines.Length > 0)
                 {
-                    List<Priority> prios = new List<Priority>();
-
                     int i = 0;
                     foreach (string Line in lines)
                     {
                         i++;
-                        
+
+                        Console.ForegroundColor = ConsoleColor.DarkRed;
+
                         if (Line.Length >= 7)
                         {
                             string[] split = Line.Split(':');
@@ -487,6 +526,9 @@ namespace SalienBot
                                 case "RE_TRIES2":
                                     RE_TRIES2 = Convert.ToInt32(split[1].Trim('"', ' '));
                                     break;
+                                case "ACCESS_TOKEN":
+                                    ACCESS_TOKEN = split[1].Trim('"', ' ');
+                                    break;
                                 case "REP_CLAN":
                                     REP_CLAN = Convert.ToInt32(split[1].Trim('"', ' '));
                                     break;
@@ -496,9 +538,9 @@ namespace SalienBot
                                 case "START_ZONE":
                                     START_ZONE = Convert.ToInt32(split[1].Trim('"', ' '));
                                     break;
-                                case "priorities":
-                                    string[] Configs = split[1].Trim('"', ' ').Split('|');
-                                    List<Priority> prio = new List<Priority>();
+                                case "PRIORITIES":
+                                    string[] Configs = split[1].Trim('"', ' ').Split(';');
+                                    List<Priority> prios = new List<Priority>();
 
                                     foreach (string config in Configs)
                                     {
@@ -507,35 +549,29 @@ namespace SalienBot
                                             string[] values = config.Split(',');
                                             if (values.Length == 4)
                                             {
-                                                prio.Add(new Priority(values[0].Trim(), Convert.ToChar(values[1]), Convert.ToChar(values[2]), Convert.ToInt32(values[3])));
+                                                prios.Add(new Priority(values[0].Trim(), Convert.ToChar(values[1]), Convert.ToChar(values[2]), Convert.ToInt32(values[3])));
                                             }
                                             else
                                             {
-                                                Console.ForegroundColor = ConsoleColor.DarkRed;
-                                                Console.WriteLine("wrong format, check line " + i + " in priorities file, skipping.");
-                                                Console.ResetColor();
+                                                Console.WriteLine("wrong format, check line " + i + " in config file, skipping.");
                                             }
                                         }
                                         else
                                         {
-                                            Console.ForegroundColor = ConsoleColor.DarkRed;
-                                            Console.WriteLine("wrong format, check line " + i + " in priorities file, skipping.");
-                                            Console.ResetColor();
+                                            Console.WriteLine("wrong format, check line " + i + " in config file, skipping.");
                                         }
 
                                     }
 
-                                    if (prio.Count > 0)
+                                    if (prios.Count > 0)
                                     {
                                         PRIORITIES.Clear();
-                                        PRIORITIES.AddRange(prio);
+                                        PRIORITIES.AddRange(prios);
                                     }
 
-                            break;
+                                    break;
                                 default:
-                                    Console.ForegroundColor = ConsoleColor.DarkRed;
-                                    Console.WriteLine("fournd no Configuration for " + split[0] + "in line " + i + " in main settings file, skipping.");
-                                    Console.ResetColor();
+                                    Console.WriteLine("fournd no Configuration for " + split[0] + "in line " + i + " in config file, skipping.");
                                     break;
 
                             }
@@ -543,12 +579,12 @@ namespace SalienBot
                         }
                         else
                         {
-                            Console.ForegroundColor = ConsoleColor.DarkRed;
-                            Console.WriteLine("wrong format, check line " + i + " in priorities file, skipping.");
-                            Console.ResetColor();
+                            Console.WriteLine("wrong format, check line " + i + " in config file, skipping.");
                         }
                     }
                 }
+
+                Console.ResetColor();
             }
             catch (Exception e)
             {
@@ -557,6 +593,31 @@ namespace SalienBot
                 Console.ResetColor();
                 ExceptionHandling(e);
             }
+        }
+
+        public static void WriteConfigToFile()
+        {
+            FileStream stream = File.Open(CONFIG_FILE_PATH, FileMode.Create);
+
+            StreamWriteLine("ROUND_TIME:\""+ ROUND_TIME + "\"", stream);
+            StreamWriteLine("WAIT_TIME:\""+ WAIT_TIME + "\"", stream);
+            StreamWriteLine("RE_TRIES:\""+ RE_TRIES + "\"", stream);
+            StreamWriteLine("WAIT_TIME2:\""+ WAIT_TIME2 + "\"", stream);
+            StreamWriteLine("RE_TRIES2:\""+ RE_TRIES2 + "\"", stream);
+            StreamWriteLine("ACCESS_TOKEN:\""+ ACCESS_TOKEN + "\"", stream);
+            StreamWriteLine("REP_CLAN:\""+ REP_CLAN + "\"", stream);
+            StreamWriteLine("STEAMID:\""+ STEAMID + "\"", stream);
+            StreamWriteLine("START_ZONE:\""+ START_ZONE + "\"", stream);
+
+            string prios = "";
+            foreach (Priority p in PRIORITIES)
+            {
+                prios += p.order + "," + p.check_type + "," + p.check_comp + "," + p.check_val + ";";
+            }
+
+            StreamWriteLine("PRIORITIES:\""+ prios.TrimEnd(Environment.NewLine.ToCharArray()) + "\"", stream);
+
+            stream.Close();
         }
 
         public static Zone DeterminateBestZoneAndPlanet()
