@@ -290,6 +290,11 @@ namespace SalienBot
             }
             else
             {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Joined BOSS zone " + bestZone.zone_position + "/" + ZoneIDToCoord(bestZone.zone_position) + " in planet " + playerInfo.active_planet.name);
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("------------------------------");
+
                 int heal_cooldown = 18;
                 int use_heal = 0;
                 int l = 1;
@@ -310,6 +315,8 @@ namespace SalienBot
                         {
                             Console.WriteLine();
                             Console.WriteLine("To many errors, retry.");
+                            Console.WriteLine("------------------------------");
+                            Console.ResetColor();
                             break;
                         }
                         l++;
@@ -320,21 +327,11 @@ namespace SalienBot
                     {
                         Console.WriteLine();
                         Console.WriteLine("Bossfight over.");
+                        Console.WriteLine("------------------------------");
+                        Console.ResetColor();
                         break;
                     }
-                    /*Console.WriteLine("Boss HP: {0}/{1}", boss_resp["boss_status"]["boss_hp"], boss_resp["boss_status"]["boss_max_hp"]);
-                    JToken players = boss_resp.SelectToken("boss_status").SelectToken("boss_players");
-                    foreach (JToken p in players)
-                    {
-                        if ((int)p["accountid"] == STEAMID)
-                        {
-                            Console.WriteLine("Your HP: {0}/{1} XP+: {2}", p["hp"], p["max_hp"], p["xp_earned"]);
-                        }
-                        else if (STEAMID == 0)
-                        {
-                            Console.WriteLine("Name: {0} HP: {1}/{2} XP+: {3}", p["name"], p["hp"], p["max_hp"], p["xp_earned"]);
-                        }
-                    }*/
+
                     string status = "Boss HP: " +(string)boss_resp["boss_status"]["boss_hp"] + "/" + (string)boss_resp["boss_status"]["boss_max_hp"];
                     
                     JToken players = boss_resp.SelectToken("boss_status").SelectToken("boss_players");
@@ -342,19 +339,18 @@ namespace SalienBot
                     {
                         if ((int)p["accountid"] == STEAMID)
                         {
-                            status += " | Your HP: " + (string)p["hp"] + "/" + (string)p["max_hp"] + "XP:" + (string)p["xp_earned"];
+                            status += " | Your HP: " + (string)p["hp"] + "/" + (string)p["max_hp"] + " XP:" + (string)p["xp_earned"];
                         }
                     }
                     Console.Write("\r{0}   ", status);
                     heal_cooldown--;
                 }
-                Console.WriteLine();
             }
         }
 
         private static void ReportScore(int score)
         {
-            Console.WriteLine("Reporting score " + score + "...");
+            Console.Write("Reporting score " + score + "... ");
 
             JToken token = DoPostWithToken(BuildUrl("ITerritoryControlMinigameService/ReportScore"), "score=" + score + "&language=english");
 
